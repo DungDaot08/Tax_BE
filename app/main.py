@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 # Gắn router
-app.include_router(tax_router, prefix="/api/tax", tags=["Tax"])
+app.include_router(tax_router, prefix="/tax", tags=["Tax"])
 
 @app.on_event("startup")
 def startup_event():
