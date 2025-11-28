@@ -7,7 +7,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 #load_dotenv()
 
 # Lấy URL kết nối PostgreSQL từ biến môi trường
-DATABASE_URL = "postgresql://postgres:123@localhost:5434/postgres"
+#DATABASE_URL = "postgresql://postgres:123@localhost:5434/postgres"
+DATABASE_URL = "postgresql://taxdb:Wt7PjzYa787mBNPd8fhJHzygzlYsd7qU@dpg-d4kgo824d50c73dgcrj0-a.oregon-postgres.render.com/taxdb_nk68"
 
 # Tạo engine
 engine = create_engine(
