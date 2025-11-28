@@ -9,6 +9,7 @@ def create_tables():
 
 app = FastAPI(
     title="Tax Information API",
+    root_path="/app",
     description="API tra cứu doanh nghiệp theo mã số thuế – CRUD – Search – Cache Redis",
     version="1.0.0",
     openapi_url="/openapi.json"
