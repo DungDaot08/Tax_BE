@@ -67,71 +67,71 @@ def delete_tax(ma_so_thue: str, db: Session = Depends(get_db)):
 #  SEARCH API
 # ==========================
 
-@router.get("/search", response_model=List[schemas.DangKyThueSchema])
-def search_tax(
-    name: Optional[str] = None,
-    dia_ban: Optional[str] = None,
-    nganh_nghe: Optional[str] = None,
-    db: Session = Depends(get_db)
-):
-    """
-    Tìm kiếm MST:
-    - name: tên doanh nghiệp / người nộp thuế
-    - dia_ban: tỉnh/thành phố
-    - nganh_nghe: ngành nghề kinh doanh
-    - Bỏ dấu, không phân biệt hoa thường, similarity >= 0.1
-    """
-    # Tạo cache key
-    cache_key = make_cache_key(
-        "search",
-        name=name or "",
-        dia_ban=dia_ban or "",
-        nganh_nghe=nganh_nghe or "",
-    )
+# @router.get("/search", response_model=List[schemas.DangKyThueSchema])
+# def search_tax(
+#     name: Optional[str] = None,
+#     dia_ban: Optional[str] = None,
+#     nganh_nghe: Optional[str] = None,
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Tìm kiếm MST:
+#     - name: tên doanh nghiệp / người nộp thuế
+#     - dia_ban: tỉnh/thành phố
+#     - nganh_nghe: ngành nghề kinh doanh
+#     - Bỏ dấu, không phân biệt hoa thường, similarity >= 0.1
+#     """
+#     # Tạo cache key
+#     cache_key = make_cache_key(
+#         "search",
+#         name=name or "",
+#         dia_ban=dia_ban or "",
+#         nganh_nghe=nganh_nghe or "",
+#     )
 
-    # Kiểm tra Redis
-    cached = r.get(cache_key)
-    if cached:
-        return [schemas.DangKyThueSchema.parse_raw(x) for x in json.loads(cached)]
+#     # Kiểm tra Redis
+#     cached = r.get(cache_key)
+#     if cached:
+#         return [schemas.DangKyThueSchema.parse_raw(x) for x in json.loads(cached)]
 
-    query = db.query(models.DangKyThue)
+#     query = db.query(models.DangKyThue)
 
-    if name:
-        # Sử dụng PostgreSQL unaccent + lower + similarity
-        query = query.filter(
-            func.similarity(
-                func.unaccent(func.lower(models.DangKyThue.ten_nguoi_nop_thue)),
-                func.unaccent(func.lower(name))
-            ) >= 0.1
-        ).order_by(
-            func.similarity(
-                func.unaccent(func.lower(models.DangKyThue.ten_nguoi_nop_thue)),
-                func.unaccent(func.lower(name))
-            ).desc()
-        )
+#     if name:
+#         # Sử dụng PostgreSQL unaccent + lower + similarity
+#         query = query.filter(
+#             func.similarity(
+#                 func.unaccent(func.lower(models.DangKyThue.ten_nguoi_nop_thue)),
+#                 func.unaccent(func.lower(name))
+#             ) >= 0.1
+#         ).order_by(
+#             func.similarity(
+#                 func.unaccent(func.lower(models.DangKyThue.ten_nguoi_nop_thue)),
+#                 func.unaccent(func.lower(name))
+#             ).desc()
+#         )
 
-    if dia_ban:
-        query = query.filter(
-            func.similarity(
-                func.unaccent(func.lower(models.DangKyThue.ten_tinh_thanh_pho)),
-                func.unaccent(func.lower(dia_ban))
-            ) >= 0.1
-        )
+#     if dia_ban:
+#         query = query.filter(
+#             func.similarity(
+#                 func.unaccent(func.lower(models.DangKyThue.ten_tinh_thanh_pho)),
+#                 func.unaccent(func.lower(dia_ban))
+#             ) >= 0.1
+#         )
 
-    if nganh_nghe:
-        query = query.filter(
-            func.similarity(
-                func.unaccent(func.lower(models.DangKyThue.ten_nganh_nghe_kd_chinh)),
-                func.unaccent(func.lower(nganh_nghe))
-            ) >= 0.1
-        )
+#     if nganh_nghe:
+#         query = query.filter(
+#             func.similarity(
+#                 func.unaccent(func.lower(models.DangKyThue.ten_nganh_nghe_kd_chinh)),
+#                 func.unaccent(func.lower(nganh_nghe))
+#             ) >= 0.1
+#         )
 
-    records = query.limit(50).all()
+#     records = query.limit(50).all()
 
-    # Cache Redis 10 phút
-    r.setex(cache_key, 600, json.dumps([x.json() for x in records]))
+#     # Cache Redis 10 phút
+#     r.setex(cache_key, 600, json.dumps([x.json() for x in records]))
 
-    return records
+# #    return records
 
 
 #@router.get("/autocomplete", response_model=List[str])
