@@ -11,7 +11,7 @@ import numpy as np
 router = APIRouter()
 
 
-@router.get("/", response_model=schemas.ReconcileResult)
+@router.get("/doi_chieu_hdr-hdv", response_model=schemas.ReconcileResult)
 def reconcile_invoice(
     mst: str,
     start_date: Optional[date] = None,
