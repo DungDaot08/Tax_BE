@@ -97,7 +97,6 @@ class DangKyThue(Base):
 
 from sqlalchemy import Column, String, Numeric, Date, Integer, Text, ForeignKey, TIMESTAMP, func
 from sqlalchemy.orm import relationship
-from app.database import Base
 
 
 class HoaDonRa(Base):

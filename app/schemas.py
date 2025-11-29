@@ -209,3 +209,14 @@ class HoaDonVaoSchema(HoaDonVaoBase):
 
     class Config:
         orm_mode = True
+        
+# schemas.py
+class ReconcileResult(BaseModel):
+    ma_so_thue: str
+    so_hd_vao: int
+    so_hd_ra: int
+    tong_hd_vao: float
+    tong_hd_ra: float
+    chenhlech: float
+    khoang_thoi_gian: str
+    canh_bao: str
