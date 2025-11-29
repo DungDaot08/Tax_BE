@@ -7,3 +7,4 @@ redis
 python-dotenv==1.0.0
 unidecode==1.3.6
 numpy
+pandas
