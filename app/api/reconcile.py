@@ -215,7 +215,7 @@ from io import BytesIO
 #         "ket_qua": results
 #     }
 
-@router.get("/doi_chieu_hdv-doanhthu", response_model=schemas.ReconcileResult)
+@router.get("/doi_chieu_hdv-doanhthu", response_model=schemas.ReconcileResult_HDV_Doanh_thu)
 def reconcile_invoice(
     mst: str,
     start_date: Optional[date] = None,
@@ -274,7 +274,7 @@ def reconcile_invoice(
         canh_bao=canh_bao
     )
     
-@router.get("/doi_chieu_hdr-doanhthu", response_model=schemas.ReconcileResult)
+@router.get("/doi_chieu_hdr-doanhthu", response_model=schemas.ReconcileResult_HDR_Doanh_thu)
 def reconcile_invoice(
     mst: str,
     start_date: Optional[date] = None,
@@ -296,8 +296,8 @@ def reconcile_invoice(
         date_label = "toàn bộ thời gian"
 
     # ====== HÓA ĐƠN VÀO ======
-    query_vao = db.query(models.HoaDonVao).filter(
-        models.HoaDonVao.ma_so_thue_nguoi_mua == mst
+    query_vao = db.query(models.HoaDonRa).filter(
+        models.HoaDonRa.ma_so_thue_nguoi_mua == mst
     )
 
     if start_date:
