@@ -264,7 +264,7 @@ def reconcile_invoice(
     else:
         canh_bao = "Bình thường"
 
-    return schemas.ReconcileResult(
+    return schemas.ReconcileResult_HDV_Doanh_thu(
         ma_so_thue=mst,
         so_hd_vao=so_hd_vao,
         tong_hd_vao=tong_hd_vao,
@@ -323,7 +323,7 @@ def reconcile_invoice(
     else:
         canh_bao = "Bình thường"
 
-    return schemas.ReconcileResult(
+    return schemas.ReconcileResult_HDR_Doanh_thu(
         ma_so_thue=mst,
         so_hd_ra=so_hd_ra,
         tong_hd_ra=tong_hd_ra,

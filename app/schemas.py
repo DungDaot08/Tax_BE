@@ -221,3 +221,21 @@ class ReconcileResult(BaseModel):
     chenhlech: float
     khoang_thoi_gian: str
     canh_bao: str
+
+class ReconcileResult_HDR_Doanh_thu(BaseModel):
+    ma_so_thue: str
+    so_hd_ra: int
+    tong_hd_ra: float
+    doanh_thu_ke_khai: float
+    chenhlech: float
+    khoang_thoi_gian: str
+    canh_bao: str
+    
+class ReconcileResult_HDV_Doanh_thu(BaseModel):
+    ma_so_thue: str
+    so_hd_vao: int
+    tong_hd_vao: float
+    doanh_thu_ke_khai: float
+    chenhlech: float
+    khoang_thoi_gian: str
+    canh_bao: str
