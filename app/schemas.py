@@ -160,8 +160,8 @@ class HoaDonRaUpdate(HoaDonRaBase):
 
 class HoaDonRaSchema(HoaDonRaBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True
@@ -205,8 +205,8 @@ class HoaDonVaoUpdate(HoaDonVaoBase):
 
 class HoaDonVaoSchema(HoaDonVaoBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True
