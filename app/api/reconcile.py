@@ -75,7 +75,9 @@ def reconcile_invoice(
         tong_hd_ra=tong_hd_ra,
         chenhlech=chenhlech,
         khoang_thoi_gian=date_label,
-        canh_bao=canh_bao
+        canh_bao=canh_bao,
+        hoa_don_vao=hd_vao_list,
+        hoa_don_ra=hd_ra_list
     )
 
 from fastapi import APIRouter, UploadFile, File, Form
@@ -271,7 +273,8 @@ def reconcile_invoice(
         doanh_thu_ke_khai=doanh_thu_ke_khai,
         chenhlech=chenhlech,
         khoang_thoi_gian=date_label,
-        canh_bao=canh_bao
+        canh_bao=canh_bao,
+        hoa_don_vao=hd_vao_list
     )
     
 @router.get("/doi_chieu_hdr-doanhthu", response_model=schemas.ReconcileResult_HDR_Doanh_thu)
@@ -330,5 +333,6 @@ def reconcile_invoice(
         doanh_thu_ke_khai=doanh_thu_ke_khai,
         chenhlech=chenhlech,
         khoang_thoi_gian=date_label,
-        canh_bao=canh_bao
+        canh_bao=canh_bao,
+        hoa_don_ra=hd_ra_list
     )

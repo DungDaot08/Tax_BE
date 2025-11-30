@@ -221,6 +221,9 @@ class ReconcileResult(BaseModel):
     chenhlech: float
     khoang_thoi_gian: str
     canh_bao: str
+    
+    hoa_don_vao: List[HoaDonVaoSchema]
+    hoa_don_ra: List[HoaDonRaSchema]
 
 class ReconcileResult_HDR_Doanh_thu(BaseModel):
     ma_so_thue: str
@@ -231,6 +234,8 @@ class ReconcileResult_HDR_Doanh_thu(BaseModel):
     khoang_thoi_gian: str
     canh_bao: str
     
+    hoa_don_ra: List[HoaDonRaSchema]
+    
 class ReconcileResult_HDV_Doanh_thu(BaseModel):
     ma_so_thue: str
     so_hd_vao: int
@@ -239,3 +244,5 @@ class ReconcileResult_HDV_Doanh_thu(BaseModel):
     chenhlech: float
     khoang_thoi_gian: str
     canh_bao: str
+    
+    hoa_don_vao: List[HoaDonVaoSchema]
