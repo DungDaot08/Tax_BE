@@ -359,7 +359,7 @@ def import_excel(file: UploadFile, db: Session = Depends(get_db)):
     #  Mapping Excel → DB column
     # ==========================
     excel_to_sql = {
-        "mã số thuế": "ma_so_thue",
+        "mst": "ma_so_thue",
         "cơ quan thuế": "co_quan_thue",
         "tên cơ quan thuế": "ten_co_quan_thue",
         "người nộp thuế": "nguoi_nop_thue",
@@ -392,6 +392,7 @@ def import_excel(file: UploadFile, db: Session = Depends(get_db)):
         "ngày bắt đầu kinh doanh": "ngay_bat_dau_kinh_doanh",
         "năm tài chính từ": "nam_tai_chinh_tu",
         "năm tài chính đến": "nam_tai_chinh_den",
+        "doanh thu trên tờ khai": "doanh_thu_ke_khai"
     }
 
     date_fields = [
