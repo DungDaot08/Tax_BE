@@ -90,6 +90,7 @@ class DangKyThue(Base):
     tien_nuoc_su_dung = Column(Numeric(18, 2))
     chi_phi_thue_mat_bang = Column(Numeric(18, 2))
     quy_mo_dan_so_dia_ban_kinh_doanh = Column(Integer)
+    doanh_thu_ke_khai = Column(Numeric(18, 2))
 
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())

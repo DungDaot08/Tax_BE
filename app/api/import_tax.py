@@ -5,6 +5,7 @@ from app import models, schemas
 import pandas as pd
 import datetime
 from io import BytesIO
+import re
 
 router = APIRouter()
 
@@ -312,3 +313,145 @@ def import_hoa_don_vao(file: UploadFile, db: Session = Depends(get_db)):
 
     db.commit()
     return {"status": "ok", "inserted": count_insert, "updated": count_update}
+
+@router.post("/CSDL_KD")
+def import_excel(file: UploadFile, db: Session = Depends(get_db)):
+    # ==========================
+    #  Bước 1: Đọc file upload
+    # ==========================
+    try:
+        contents = file.file.read()
+        df_raw = pd.read_excel(BytesIO(contents), header=None)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Không đọc được file Excel: {e}")
+
+    if df_raw.shape[0] < 5:
+        raise HTTPException(status_code=400, detail="File Excel không đúng cấu trúc (phải có ≥ 5 dòng).")
+
+    # ==========================
+    #  Bước 2: Làm sạch header (4 dòng đầu)
+    # ==========================
+    df_header = df_raw.iloc[:4].copy()
+    df_header = df_header.fillna(method="ffill", axis=0)
+
+    row_main = df_header.iloc[0]   # header cha
+    row_sub  = df_header.iloc[3]   # header con
+
+    def format_text(s):
+        s = str(s).strip().lower()
+        s = re.sub(r'[\n\r]+', ' ', s)
+        s = re.sub(r'\s+', ' ', s)
+        return s
+
+    headers = []
+    for i in range(len(row_main)):
+        parent = format_text(row_main[i])
+        child  = format_text(row_sub[i])
+        headers.append(child if child not in ("", "nan") else parent)
+
+    # ==========================
+    #  Bước 3: Giữ nguyên dữ liệu
+    # ==========================
+    df = df_raw.iloc[4:, :].reset_index(drop=True)
+    df.columns = headers
+
+    # ==========================
+    #  Mapping Excel → DB column
+    # ==========================
+    excel_to_sql = {
+        "mã số thuế": "ma_so_thue",
+        "cơ quan thuế": "co_quan_thue",
+        "tên cơ quan thuế": "ten_co_quan_thue",
+        "người nộp thuế": "nguoi_nop_thue",
+        "tên người nộp thuế": "ten_nguoi_nop_thue",
+        "mã ngành nghề kd chính": "ma_nganh_nghe_kd_chinh",
+        "tên ngành nghề kd chính": "ten_nganh_nghe_kd_chinh",
+        "số nhà/đường/phố": "so_nha_duong_pho",
+        "mã phường/xã": "ma_phuong_xa",
+        "tên phường/xã": "ten_phuong_xa",
+        "mã quận/huyện": "ma_quan_huyen",
+        "tên quận/huyện": "ten_quan_huyen",
+        "mã tỉnh/thành phố": "ma_tinh_thanh_pho",
+        "tên tỉnh/thành phố": "ten_tinh_thanh_pho",
+        "mã quốc gia": "ma_quoc_gia",
+        "tên quốc gia": "ten_quoc_gia",
+        "tổng số lao động": "tong_so_lao_dong",
+        "ngành nghề kinh doanh": "nganh_nghe_kinh_doanh",
+        "tên giám đốc": "ten_giam_doc",
+        "điện thoại giám đốc": "dien_thoai_giam_doc",
+        "tên kế toán trưởng": "ten_ke_toan_truong",
+        "điện thoại kế toán trưởng": "dien_thoai_ke_toan_truong",
+        "số giấy tờ": "so_giay_to",
+        "ngày cấp": "ngay_cap",
+        "loại giấy tờ": "loai_giay_to",
+        "số giấy thông hành": "so_giay_thong_hanh",
+        "số thẻ quân nhân": "so_the_quan_nhan",
+        "số cmnd người đại diện": "so_cmnd_nguoi_dai_dien",
+        "phương pháp tính thuế": "phuong_phap_tinh_thue",
+        "ngày sinh": "ngay_sinh",
+        "ngày bắt đầu kinh doanh": "ngay_bat_dau_kinh_doanh",
+        "năm tài chính từ": "nam_tai_chinh_tu",
+        "năm tài chính đến": "nam_tai_chinh_den",
+    }
+
+    date_fields = [
+        "ngay_cap", "ngay_sinh", "ngay_bat_dau_kinh_doanh",
+        "nam_tai_chinh_tu", "nam_tai_chinh_den"
+    ]
+
+    count_insert = 0
+    count_update = 0
+
+    # ==========================
+    #  Bước 4: Lặp từng dòng import
+    # ==========================
+    for idx, row in df.iterrows():
+        row_data = {}
+
+        for excel_col, sql_col in excel_to_sql.items():
+            if excel_col in df.columns:
+                row_data[sql_col] = row.get(excel_col)
+
+        # Parse ngày
+        for f in date_fields:
+            if f in row_data:
+                row_data[f] = parse_date(row_data[f])
+
+        # Chuẩn hóa MST
+        mst = clean_mst(row_data.get("ma_so_thue"))
+        if not mst:
+            continue
+
+        row_data["ma_so_thue"] = mst
+
+        # Kiểm tra DB
+        db_obj = db.query(models.DangKyThue)\
+                   .filter(models.DangKyThue.ma_so_thue == mst)\
+                   .first()
+
+        if db_obj:
+            # Cập nhật chỉ những trường có giá trị
+            for k, v in row_data.items():
+                if v not in (None, "", "nan"):
+                    setattr(db_obj, k, v)
+            db.add(db_obj)
+            count_update += 1
+
+        else:
+            # Gán None cho cột không có trong Excel
+            for col in models.DangKyThue.__table__.columns.keys():
+                if col not in row_data:
+                    row_data[col] = None
+
+            db_obj = models.DangKyThue(**row_data)
+            db.add(db_obj)
+            count_insert += 1
+
+    db.commit()
+
+    return {
+        "status": "ok",
+        "inserted": count_insert,
+        "updated": count_update,
+        "total": count_insert + count_update
+    }
