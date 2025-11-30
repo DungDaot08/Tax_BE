@@ -259,7 +259,7 @@ def reconcile_invoice(
     chenhlech = doanh_thu_ke_khai - tong_hd_vao
 
     # ====== CẢNH BÁO ======
-    if abs(chenhlech) <0:
+    if abs(chenhlech) < 0:
         canh_bao = "HĐV lớn hơn Doanh thu"
     else:
         canh_bao = "Bình thường"
@@ -318,7 +318,7 @@ def reconcile_invoice(
     chenhlech = doanh_thu_ke_khai - tong_hd_ra
 
     # ====== CẢNH BÁO ======
-    if abs(chenhlech) <0:
+    if abs(chenhlech) < 0:
         canh_bao = "HĐR lớn hơn Doanh thu"
     else:
         canh_bao = "Bình thường"
