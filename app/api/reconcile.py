@@ -252,7 +252,7 @@ def reconcile_invoice(
     # ====== HÓA ĐƠN RA ======
     query_doanh_thu = db.query(models.DangKyThue).filter(
         models.DangKyThue.ma_so_thue == mst
-    )
+    ).first()
     doanh_thu_ke_khai = query_doanh_thu.doanh_thu_ke_khai
 
     # ====== CHÊNH LỆCH ======
@@ -311,7 +311,7 @@ def reconcile_invoice(
     # ====== HÓA ĐƠN RA ======
     query_doanh_thu = db.query(models.DangKyThue).filter(
         models.DangKyThue.ma_so_thue == mst
-    )
+    ).first()
     doanh_thu_ke_khai = query_doanh_thu.doanh_thu_ke_khai
 
     # ====== CHÊNH LỆCH ======
