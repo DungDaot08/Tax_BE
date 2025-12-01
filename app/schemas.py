@@ -224,6 +224,9 @@ class ReconcileResult(BaseModel):
     
     hoa_don_vao: List[HoaDonVaoSchema]
     hoa_don_ra: List[HoaDonRaSchema]
+    
+    class Config:
+        orm_mode = True
 
 class ReconcileResult_HDR_Doanh_thu(BaseModel):
     ma_so_thue: str
@@ -235,6 +238,8 @@ class ReconcileResult_HDR_Doanh_thu(BaseModel):
     canh_bao: str
     
     hoa_don_ra: List[HoaDonRaSchema]
+    class Config:
+        orm_mode = True
     
 class ReconcileResult_HDV_Doanh_thu(BaseModel):
     ma_so_thue: str
@@ -246,3 +251,5 @@ class ReconcileResult_HDV_Doanh_thu(BaseModel):
     canh_bao: str
     
     hoa_don_vao: List[HoaDonVaoSchema]
+    class Config:
+        orm_mode = True
