@@ -90,7 +90,7 @@ class DangKyThueSchema(BaseModel):
     doanh_thu_ke_khai: Optional[float]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TaxCreate(BaseModel):
     ma_so_thue: str
@@ -112,7 +112,7 @@ class TaxOut(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True
+        
         
 
 class PaginatedTax(BaseModel):
@@ -164,7 +164,7 @@ class HoaDonRaSchema(HoaDonRaBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
         
 class HoaDonVaoBase(BaseModel):
     ky_hieu_mau_so: Optional[str]
@@ -209,7 +209,7 @@ class HoaDonVaoSchema(HoaDonVaoBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
         
 # schemas.py
 class ReconcileResult(BaseModel):
@@ -226,7 +226,7 @@ class ReconcileResult(BaseModel):
     hoa_don_ra: List[HoaDonRaSchema]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ReconcileResult_HDR_Doanh_thu(BaseModel):
     ma_so_thue: str
@@ -239,7 +239,7 @@ class ReconcileResult_HDR_Doanh_thu(BaseModel):
     
     hoa_don_ra: List[HoaDonRaSchema]
     class Config:
-        orm_mode = True
+        from_attributes = True
     
 class ReconcileResult_HDV_Doanh_thu(BaseModel):
     ma_so_thue: str
@@ -252,4 +252,4 @@ class ReconcileResult_HDV_Doanh_thu(BaseModel):
     
     hoa_don_vao: List[HoaDonVaoSchema]
     class Config:
-        orm_mode = True
+        from_attributes = True

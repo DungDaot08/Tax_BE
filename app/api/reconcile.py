@@ -276,7 +276,7 @@ def reconcile_invoice(
         chenhlech=chenhlech,
         khoang_thoi_gian=date_label,
         canh_bao=canh_bao,
-        hoa_don_vao=hd_vao_list
+        hoa_don_vao=[schemas.HoaDonVaoSchema.from_orm(h) for h in hd_vao_list]
     )
     
 @router.get("/doi_chieu_hdr-doanhthu", response_model=schemas.ReconcileResult_HDR_Doanh_thu)
@@ -302,7 +302,7 @@ def reconcile_invoice(
 
     # ====== HÓA ĐƠN VÀO ======
     query_vao = db.query(models.HoaDonRa).filter(
-        models.HoaDonRa.ma_so_thue_nguoi_mua == mst
+        models.HoaDonRa.ma_so_thue_nguoi_ban == mst
     )
 
     if start_date:
@@ -336,5 +336,5 @@ def reconcile_invoice(
         chenhlech=chenhlech,
         khoang_thoi_gian=date_label,
         canh_bao=canh_bao,
-        hoa_don_ra=hd_ra_list
+        hoa_don_ra=[schemas.HoaDonRaSchema.from_orm(h) for h in hd_vao_list]
     )
