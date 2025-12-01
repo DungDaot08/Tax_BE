@@ -76,8 +76,10 @@ def reconcile_invoice(
         chenhlech=chenhlech,
         khoang_thoi_gian=date_label,
         canh_bao=canh_bao,
-        hoa_don_vao=hd_vao_list,
-        hoa_don_ra=hd_ra_list
+        #hoa_don_vao=hd_vao_list,
+        #hoa_don_ra=hd_ra_list
+        hoa_don_vao=[schemas.HoaDonVaoSchema.from_orm(h) for h in hd_vao_list],
+        hoa_don_ra=[schemas.HoaDonRaSchema.from_orm(h) for h in hd_ra_list]
     )
 
 from fastapi import APIRouter, UploadFile, File, Form
