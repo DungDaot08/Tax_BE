@@ -230,6 +230,18 @@ def import_hoa_don(file: UploadFile, db: Session = Depends(get_db)):
     return {"status": "ok", "inserted": count_insert, "updated": count_update}
 
 
+import logging
+logger = logging.getLogger("uvicorn")
+
+def safe_float(val):
+    try:
+        if pd.isna(val):
+            return None
+        return float(val)
+    except:
+        return None
+
+
 @router.post("/hoa_don_vao")
 def import_hoa_don_vao(file: UploadFile, db: Session = Depends(get_db)):
     try:
@@ -238,16 +250,15 @@ def import_hoa_don_vao(file: UploadFile, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Không đọc được file Excel: {e}")
 
-    # Mapping header Excel → cột SQL
     excel_to_sql = {
         "Ký hiệu mẫu số": "ky_hieu_mau_so",
         "Ký hiệu hóa đơn": "ky_hieu_hoa_don",
         "Số hóa đơn": "so_hoa_don",
         "Ngày lập": "ngay_lap",
-        "MST người bán": "ma_so_thue_nguoi_ban",
+        "MST người bán/MST người xuất hàng": "ma_so_thue_nguoi_ban",
         "Tên người bán": "ten_nguoi_ban",
         "Địa chỉ người bán": "dia_chi_nguoi_ban",
-        "MST người mua": "ma_so_thue_nguoi_mua",
+        "MST người mua/MST người nhận hàng": "ma_so_thue_nguoi_mua",
         "Tên người mua": "ten_nguoi_mua",
         "MST tổ chức cung cấp giải pháp": "ma_so_thue_to_chuc_cung_cap_giai_phap",
         "MST tổ chức truyền nhận": "ma_so_thue_to_chuc_truyen_nhan",
@@ -262,33 +273,49 @@ def import_hoa_don_vao(file: UploadFile, db: Session = Depends(get_db)):
         "Kết quả kiểm tra hóa đơn": "ket_qua_kiem_tra_hoa_don"
     }
 
+    numeric_fields = [
+        "tong_tien_chua_thue",
+        "tong_tien_thue",
+        "tong_tien_chiet_khau_tm",
+        "tong_tien_phi",
+        "tong_tien_thanh_toan",
+        "ty_gia",
+        "ky_hieu_mau_so"
+    ]
+
     date_fields = ["ngay_lap"]
 
     count_insert = 0
     count_update = 0
+    mst_inserted = set()
 
     for idx, row in df.iterrows():
         row_data = {}
+
         for excel_col, sql_col in excel_to_sql.items():
             if excel_col in row:
                 row_data[sql_col] = row[excel_col]
 
-        # Parse ngày
+        # parse ngày
         for f in date_fields:
             if f in row_data:
                 row_data[f] = parse_date(row_data[f])
 
-        # Chuẩn hóa MST
+        # chuẩn hóa MST
         for mst_field in ["ma_so_thue_nguoi_ban", "ma_so_thue_nguoi_mua"]:
             if mst_field in row_data:
                 row_data[mst_field] = clean_mst(row_data[mst_field])
 
-        # Kiểm tra tồn tại theo so_hoa_don + MST người mua
+        # ép kiểu float
+        for f in numeric_fields:
+            if f in row_data:
+                row_data[f] = safe_float(row_data[f])
+
         so_hoa_don = row_data.get("so_hoa_don")
         ma_so_thue_nguoi_mua = row_data.get("ma_so_thue_nguoi_mua")
 
         if not (so_hoa_don and ma_so_thue_nguoi_mua):
-            continue  # bỏ qua nếu thiếu key chính
+            continue
 
         db_obj = db.query(models.HoaDonVao).filter(
             models.HoaDonVao.so_hoa_don == so_hoa_don,
@@ -296,23 +323,33 @@ def import_hoa_don_vao(file: UploadFile, db: Session = Depends(get_db)):
         ).first()
 
         if db_obj:
-            # Update các trường có dữ liệu
             for k, v in row_data.items():
                 if v is not None:
                     setattr(db_obj, k, v)
             db.add(db_obj)
             count_update += 1
         else:
-            # Insert mới, các trường không có dữ liệu → None
             for col in models.HoaDonVao.__table__.columns.keys():
                 if col not in row_data:
                     row_data[col] = None
             db_obj = models.HoaDonVao(**row_data)
             db.add(db_obj)
             count_insert += 1
+            mst_inserted.add(ma_so_thue_nguoi_mua)
 
     db.commit()
-    return {"status": "ok", "inserted": count_insert, "updated": count_update}
+
+    logger.info(f"ĐÃ INSERT {count_insert} hóa đơn từ {len(mst_inserted)} MST")
+    logger.info(f"DANH SÁCH MST INSERT: {', '.join(mst_inserted)}")
+
+    return {
+        "status": "ok",
+        "inserted": count_insert,
+        "updated": count_update,
+        "mst_inserted": list(mst_inserted)
+    }
+
+
 
 @router.post("/CSDL_KD")
 def import_excel(file: UploadFile, db: Session = Depends(get_db)):

@@ -146,7 +146,7 @@ class HoaDonRa(Base):
 class HoaDonVao(Base):
     __tablename__ = "hoa_don_vao"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
     ky_hieu_mau_so = Column(String(50))
     ky_hieu_hoa_don = Column(String(50))
