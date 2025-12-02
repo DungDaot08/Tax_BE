@@ -91,6 +91,7 @@ class DangKyThueSchema(BaseModel):
 
     class Config:
         from_attributes = True
+        orm_mode = True
 
 class TaxCreate(BaseModel):
     ma_so_thue: str
@@ -112,6 +113,7 @@ class TaxOut(BaseModel):
 
     class Config:
         from_attributes = True
+        orm_mode = True
         
         
 
@@ -165,6 +167,7 @@ class HoaDonRaSchema(HoaDonRaBase):
 
     class Config:
         from_attributes = True
+        orm_mode = True
         
 class HoaDonVaoBase(BaseModel):
     ky_hieu_mau_so: Optional[str]
@@ -210,23 +213,9 @@ class HoaDonVaoSchema(HoaDonVaoBase):
 
     class Config:
         from_attributes = True
+        orm_mode = True
         
 # schemas.py
-class ReconcileResult(BaseModel):
-    ma_so_thue: str
-    so_hd_vao: int
-    so_hd_ra: int
-    tong_hd_vao: float
-    tong_hd_ra: float
-    chenhlech: float
-    khoang_thoi_gian: str
-    canh_bao: str
-    
-    hoa_don_vao: List[HoaDonVaoSchema]
-    hoa_don_ra: List[HoaDonRaSchema]
-    
-    class Config:
-        from_attributes = True
 
 class ReconcileResult_HDR_Doanh_thu(BaseModel):
     ma_so_thue: str
@@ -240,6 +229,7 @@ class ReconcileResult_HDR_Doanh_thu(BaseModel):
     hoa_don_ra: List[HoaDonRaSchema]
     class Config:
         from_attributes = True
+        orm_mode = True
     
 class ReconcileResult_HDV_Doanh_thu(BaseModel):
     ma_so_thue: str
@@ -253,3 +243,69 @@ class ReconcileResult_HDV_Doanh_thu(BaseModel):
     hoa_don_vao: List[HoaDonVaoSchema]
     class Config:
         from_attributes = True
+        orm_mode = True
+
+class TanSuatHoaDon(BaseModel):
+    mst: str
+    so_hoa_don_ra: int
+    so_hoa_don_vao: int
+    tong_hoa_don: int
+
+    so_hoa_don_moi: int
+    so_hoa_don_dieu_chinh: int
+    so_hoa_don_thay_the: int
+    so_hoa_don_huy: int
+
+    so_ngay: int
+    trung_binh_ngay_1_hd_ra: float
+    longest_gap_ra: int
+    trung_binh_ngay_1_hd_vao: float
+    longest_gap_vao: int
+    canh_bao_ra: str
+    canh_bao_vao: str
+
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+class RuiRoHoaDon(BaseModel):
+    mst: str
+    khong_co_hd_ra: bool
+    khong_co_hd_vao: bool
+    khoang_trong_hd_ra: int
+    khoang_trong_hd_vao: int
+    canh_bao_hd_ra: Optional[str]
+    canh_bao_hd_vao: Optional[str]
+
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+class ReconcileResult(BaseModel):
+    ma_so_thue: str
+    khoang_thoi_gian: str
+
+    # Năm nay
+    so_hd_vao: int
+    so_hd_ra: int
+    tong_hd_vao: float
+    tong_hd_ra: float
+
+    # Năm trước (so sánh)
+    so_hd_vao_lastyear: int
+    so_hd_ra_lastyear: int
+    tong_hd_vao_lastyear: float
+    tong_hd_ra_lastyear: float
+
+    chenhlech: float
+    canh_bao: str
+
+    hoa_don_vao: List[HoaDonVaoSchema]
+    hoa_don_ra: List[HoaDonRaSchema]
+
+    hoa_don_vao_lastyear: List[HoaDonVaoSchema]
+    hoa_don_ra_lastyear: List[HoaDonRaSchema]
+
+    class Config:
+        from_attributes = True
+        orm_mode = True

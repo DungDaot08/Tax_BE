@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 #from app.api.tax import router as tax_router
-from app.api import tax, reconcile, import_tax
+from app.api import tax, reconcile, import_tax, stats
 from app.database import Base, engine
 
 # Khởi tạo DB
@@ -29,6 +29,7 @@ app.add_middleware(
 app.include_router(tax.router, prefix="/tax", tags=["Tax"])
 app.include_router(reconcile.router, prefix="/doi_chieu", tags=["Doi chieu"])
 app.include_router(import_tax.router, prefix="/import_tax", tags=["Import_Tax"])
+app.include_router(stats.router, prefix="/stats", tags=["Stats"])
 
 @app.on_event("startup")
 def startup_event():

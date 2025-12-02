@@ -11,76 +11,76 @@ import numpy as np
 router = APIRouter()
 
 
-@router.get("/doi_chieu_hdr-hdv", response_model=schemas.ReconcileResult)
-def reconcile_invoice(
-    mst: str,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    warning_limit: Optional[float] = 1_000_000_000,  # <<< Mức cảnh báo mặc định 1 tỷ
-    db: Session = Depends(get_db)
-):
+# @router.get("/doi_chieu_hdr-hdv", response_model=schemas.ReconcileResult)
+# def reconcile_invoice(
+#     mst: str,
+#     start_date: Optional[date] = None,
+#     end_date: Optional[date] = None,
+#     warning_limit: Optional[float] = 1_000_000_000,  # <<< Mức cảnh báo mặc định 1 tỷ
+#     db: Session = Depends(get_db)
+# ):
 
-    # --- Xử lý ngày ---
-    if start_date and not end_date:
-        end_date = date.today()
+#     # --- Xử lý ngày ---
+#     if start_date and not end_date:
+#         end_date = date.today()
 
-    if end_date and not start_date:
-        start_date = date(2000, 1, 1)
+#     if end_date and not start_date:
+#         start_date = date(2000, 1, 1)
 
-    if start_date and end_date:
-        date_label = f"từ {start_date.strftime('%d/%m/%Y')} đến {end_date.strftime('%d/%m/%Y')}"
-    else:
-        date_label = "toàn bộ thời gian"
+#     if start_date and end_date:
+#         date_label = f"từ {start_date.strftime('%d/%m/%Y')} đến {end_date.strftime('%d/%m/%Y')}"
+#     else:
+#         date_label = "toàn bộ thời gian"
 
-    # ====== HÓA ĐƠN VÀO ======
-    query_vao = db.query(models.HoaDonVao).filter(
-        models.HoaDonVao.ma_so_thue_nguoi_mua == mst
-    )
+#     # ====== HÓA ĐƠN VÀO ======
+#     query_vao = db.query(models.HoaDonVao).filter(
+#         models.HoaDonVao.ma_so_thue_nguoi_mua == mst
+#     )
 
-    if start_date:
-        query_vao = query_vao.filter(models.HoaDonVao.ngay_lap >= start_date)
-        query_vao = query_vao.filter(models.HoaDonVao.ngay_lap <= (end_date or date.today()))
+#     if start_date:
+#         query_vao = query_vao.filter(models.HoaDonVao.ngay_lap >= start_date)
+#         query_vao = query_vao.filter(models.HoaDonVao.ngay_lap <= (end_date or date.today()))
 
-    hd_vao_list = query_vao.all()
-    so_hd_vao = len(hd_vao_list)
-    tong_hd_vao = sum(h.tong_tien_thanh_toan or 0 for h in hd_vao_list)
+#     hd_vao_list = query_vao.all()
+#     so_hd_vao = len(hd_vao_list)
+#     tong_hd_vao = sum(h.tong_tien_thanh_toan or 0 for h in hd_vao_list)
 
-    # ====== HÓA ĐƠN RA ======
-    query_ra = db.query(models.HoaDonRa).filter(
-        models.HoaDonRa.ma_so_thue_nguoi_ban == mst
-    )
+#     # ====== HÓA ĐƠN RA ======
+#     query_ra = db.query(models.HoaDonRa).filter(
+#         models.HoaDonRa.ma_so_thue_nguoi_ban == mst
+#     )
 
-    if start_date:
-        query_ra = query_ra.filter(models.HoaDonRa.ngay_lap >= start_date)
-        query_ra = query_ra.filter(models.HoaDonRa.ngay_lap <= (end_date or date.today()))
+#     if start_date:
+#         query_ra = query_ra.filter(models.HoaDonRa.ngay_lap >= start_date)
+#         query_ra = query_ra.filter(models.HoaDonRa.ngay_lap <= (end_date or date.today()))
 
-    hd_ra_list = query_ra.all()
-    so_hd_ra = len(hd_ra_list)
-    tong_hd_ra = sum(h.tong_tien_thanh_toan or 0 for h in hd_ra_list)
+#     hd_ra_list = query_ra.all()
+#     so_hd_ra = len(hd_ra_list)
+#     tong_hd_ra = sum(h.tong_tien_thanh_toan or 0 for h in hd_ra_list)
 
-    # ====== CHÊNH LỆCH ======
-    chenhlech = tong_hd_ra - tong_hd_vao
+#     # ====== CHÊNH LỆCH ======
+#     chenhlech = tong_hd_ra - tong_hd_vao
 
-    # ====== CẢNH BÁO ======
-    if abs(chenhlech) >= warning_limit:
-        canh_bao = "NGUY HIỂM – Chênh lệch vượt mức cảnh báo!"
-    else:
-        canh_bao = "Bình thường"
+#     # ====== CẢNH BÁO ======
+#     if abs(chenhlech) >= warning_limit:
+#         canh_bao = "NGUY HIỂM – Chênh lệch vượt mức cảnh báo!"
+#     else:
+#         canh_bao = "Bình thường"
 
-    return schemas.ReconcileResult(
-        ma_so_thue=mst,
-        so_hd_vao=so_hd_vao,
-        so_hd_ra=so_hd_ra,
-        tong_hd_vao=tong_hd_vao,
-        tong_hd_ra=tong_hd_ra,
-        chenhlech=chenhlech,
-        khoang_thoi_gian=date_label,
-        canh_bao=canh_bao,
-        #hoa_don_vao=hd_vao_list,
-        #hoa_don_ra=hd_ra_list
-        hoa_don_vao=[schemas.HoaDonVaoSchema.from_orm(h) for h in hd_vao_list],
-        hoa_don_ra=[schemas.HoaDonRaSchema.from_orm(h) for h in hd_ra_list]
-    )
+#     return schemas.ReconcileResult(
+#         ma_so_thue=mst,
+#         so_hd_vao=so_hd_vao,
+#         so_hd_ra=so_hd_ra,
+#         tong_hd_vao=tong_hd_vao,
+#         tong_hd_ra=tong_hd_ra,
+#         chenhlech=chenhlech,
+#         khoang_thoi_gian=date_label,
+#         canh_bao=canh_bao,
+#         #hoa_don_vao=hd_vao_list,
+#         #hoa_don_ra=hd_ra_list
+#         hoa_don_vao=[schemas.HoaDonVaoSchema.from_orm(h) for h in hd_vao_list],
+#         hoa_don_ra=[schemas.HoaDonRaSchema.from_orm(h) for h in hd_ra_list]
+#     )
 
 from fastapi import APIRouter, UploadFile, File, Form
 import pandas as pd
@@ -337,4 +337,121 @@ def reconcile_invoice(
         khoang_thoi_gian=date_label,
         canh_bao=canh_bao,
         hoa_don_ra=[schemas.HoaDonRaSchema.from_orm(h) for h in hd_ra_list]
+    )
+    
+@router.get("/doi_chieu_hdr-hdv", response_model=schemas.ReconcileResult)
+def reconcile_invoice(
+    mst: str,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    warning_limit: Optional[float] = 1_000_000_000,
+    db: Session = Depends(get_db)
+):
+
+    # =========================
+    # XỬ LÝ NGÀY
+    # =========================
+    if start_date and not end_date:
+        end_date = date.today()
+
+    if end_date and not start_date:
+        start_date = date(2000, 1, 1)
+
+    if not start_date and not end_date:
+        start_date = date(2000, 1, 1)
+        end_date = date.today()
+
+    # Gắn nhãn khoảng thời gian
+    date_label = f"từ {start_date.strftime('%d/%m/%Y')} đến {end_date.strftime('%d/%m/%Y')}"
+
+    # --- Khoảng thời gian cùng kỳ năm trước ---
+    prev_start = date(start_date.year - 1, start_date.month, start_date.day)
+    prev_end = date(end_date.year - 1, end_date.month, end_date.day)
+
+    # ====================================================
+    # HÓA ĐƠN VÀO – NĂM NAY
+    # ====================================================
+    hd_vao_list = db.query(models.HoaDonVao).filter(
+        models.HoaDonVao.ma_so_thue_nguoi_mua == mst,
+        models.HoaDonVao.ngay_lap >= start_date,
+        models.HoaDonVao.ngay_lap <= end_date
+    ).all()
+
+    so_hd_vao = len(hd_vao_list)
+    tong_hd_vao = sum(h.tong_tien_thanh_toan or 0 for h in hd_vao_list)
+
+    # ====================================================
+    # HÓA ĐƠN VÀO – CÙNG KỲ NĂM TRƯỚC
+    # ====================================================
+    hd_vao_lastyear = db.query(models.HoaDonVao).filter(
+        models.HoaDonVao.ma_so_thue_nguoi_mua == mst,
+        models.HoaDonVao.ngay_lap >= prev_start,
+        models.HoaDonVao.ngay_lap <= prev_end
+    ).all()
+
+    so_hd_vao_lastyear = len(hd_vao_lastyear)
+    tong_hd_vao_lastyear = sum(h.tong_tien_thanh_toan or 0 for h in hd_vao_lastyear)
+
+    # ====================================================
+    # HÓA ĐƠN RA – NĂM NAY
+    # ====================================================
+    hd_ra_list = db.query(models.HoaDonRa).filter(
+        models.HoaDonRa.ma_so_thue_nguoi_ban == mst,
+        models.HoaDonRa.ngay_lap >= start_date,
+        models.HoaDonRa.ngay_lap <= end_date
+    ).all()
+
+    so_hd_ra = len(hd_ra_list)
+    tong_hd_ra = sum(h.tong_tien_thanh_toan or 0 for h in hd_ra_list)
+
+    # ====================================================
+    # HÓA ĐƠN RA – CÙNG KỲ NĂM TRƯỚC
+    # ====================================================
+    hd_ra_lastyear = db.query(models.HoaDonRa).filter(
+        models.HoaDonRa.ma_so_thue_nguoi_ban == mst,
+        models.HoaDonRa.ngay_lap >= prev_start,
+        models.HoaDonRa.ngay_lap <= prev_end
+    ).all()
+
+    so_hd_ra_lastyear = len(hd_ra_lastyear)
+    tong_hd_ra_lastyear = sum(h.tong_tien_thanh_toan or 0 for h in hd_ra_lastyear)
+
+    # =========================
+    # CHÊNH LỆCH
+    # =========================
+    chenhlech = (tong_hd_ra or 0) - (tong_hd_vao or 0)
+    if abs(chenhlech) >= warning_limit:
+        canh_bao = "NGUY HIỂM – Chênh lệch vượt mức cảnh báo!"
+    else:
+        canh_bao = "Bình thường"
+
+    # =========================
+    # TRẢ VỀ ĐẦY ĐỦ DỮ LIỆU
+    # =========================
+    return schemas.ReconcileResult(
+        ma_so_thue=mst,
+        khoang_thoi_gian=date_label,
+
+        # Năm nay
+        so_hd_vao=so_hd_vao,
+        so_hd_ra=so_hd_ra,
+        tong_hd_vao=tong_hd_vao,
+        tong_hd_ra=tong_hd_ra,
+
+        # Năm trước
+        so_hd_vao_lastyear=so_hd_vao_lastyear,
+        so_hd_ra_lastyear=so_hd_ra_lastyear,
+        tong_hd_vao_lastyear=tong_hd_vao_lastyear,
+        tong_hd_ra_lastyear=tong_hd_ra_lastyear,
+
+        # Chênh lệch
+        chenhlech=chenhlech,
+        canh_bao=canh_bao,
+
+        # Chi tiết hóa đơn
+        hoa_don_vao=[schemas.HoaDonVaoSchema.from_orm(h) for h in hd_vao_list],
+        hoa_don_ra=[schemas.HoaDonRaSchema.from_orm(h) for h in hd_ra_list],
+
+        hoa_don_vao_lastyear=[schemas.HoaDonVaoSchema.from_orm(h) for h in hd_vao_lastyear],
+        hoa_don_ra_lastyear=[schemas.HoaDonRaSchema.from_orm(h) for h in hd_ra_lastyear],
     )
