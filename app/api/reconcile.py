@@ -4,12 +4,31 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import date
 from typing import Optional, List
+from typing import Any, Optional
 from app.database import get_db
 from app import models, schemas
 import numpy as np
+from decimal import Decimal, InvalidOperation
+import math
 
 router = APIRouter()
 
+def to_decimal_safe(x):
+    """Convert bất kỳ giá trị nào sang Decimal, None -> 0"""
+    try:
+        if x is None:
+            return Decimal(0)
+        return Decimal(str(x))
+    except InvalidOperation:
+        return Decimal(0)
+
+
+def decimal_to_json_safe(d: Decimal) -> float:
+    """Convert Decimal sang float, xử lý NaN/Inf"""
+    f = float(d)
+    if math.isinf(f) or math.isnan(f):
+        return 0.0
+    return f
 
 # @router.get("/doi_chieu_hdr-hdv", response_model=schemas.ReconcileResult)
 # def reconcile_invoice(
@@ -219,6 +238,27 @@ from io import BytesIO
 #         "ket_qua": results
 #     }
 
+def convert_decimal_to_safe_float(obj: Any) -> Any:
+    """
+    Duyệt qua dict/list/Decimal/float, convert Decimal -> float
+    và đảm bảo không có NaN/inf
+    """
+    if isinstance(obj, Decimal):
+        f = float(obj)
+        if math.isnan(f) or math.isinf(f):
+            return 0.0
+        return f
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return 0.0
+        return obj
+    elif isinstance(obj, dict):
+        return {k: convert_decimal_to_safe_float(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_decimal_to_safe_float(v) for v in obj]
+    else:
+        return obj
+
 @router.get("/doi_chieu_hdv-doanhthu", response_model=schemas.ReconcileResult_HDV_Doanh_thu)
 def reconcile_invoice(
     mst: str,
@@ -226,45 +266,27 @@ def reconcile_invoice(
     end_date: Optional[date] = None,
     db: Session = Depends(get_db)
 ):
-
     # ============================
     # XỬ LÝ NGÀY
     # ============================
-
-    # Nếu chỉ có start → end = hôm nay
     if start_date and not end_date:
         end_date = date.today()
-
-    # Nếu chỉ có end → start = mốc rộng
     if end_date and not start_date:
         start_date = date(2000, 1, 1)
 
-    # Tính nhãn ngày
     if start_date and end_date:
         date_label = f"từ {start_date.strftime('%d/%m/%Y')} đến {end_date.strftime('%d/%m/%Y')}"
     else:
         date_label = "toàn bộ thời gian"
 
-
-    # ============================
-    # TÍNH SỐ THÁNG TRONG KHOẢNG THỜI GIAN
-    # ============================
-
+    total_months = 1
     if start_date and end_date:
-        # Số tháng = (năm * 12 + tháng)
         total_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
-    else:
-        total_months = 1   # không chọn ngày → coi như 1 tháng để tránh lỗi
-
 
     # ============================
     # LẤY HÓA ĐƠN VÀO
     # ============================
-
-    query_vao = db.query(models.HoaDonVao).filter(
-        models.HoaDonVao.ma_so_thue_nguoi_mua == mst
-    )
-
+    query_vao = db.query(models.HoaDonVao).filter(models.HoaDonVao.ma_so_thue_nguoi_mua == mst)
     if start_date:
         query_vao = query_vao.filter(models.HoaDonVao.ngay_lap >= start_date)
         query_vao = query_vao.filter(models.HoaDonVao.ngay_lap <= end_date)
@@ -273,47 +295,27 @@ def reconcile_invoice(
     so_hd_vao = len(hd_vao_list)
     tong_hd_vao = sum((h.tong_tien_thanh_toan or 0) for h in hd_vao_list)
 
-
     # ============================
     # LẤY DOANH THU TỪ BẢNG HỘ KHOÁN
     # ============================
-
-    ho_khoan = db.query(models.HoKhoan).filter(
-        models.HoKhoan.ma_so_thue == mst
-    ).first()
-
-    if ho_khoan:
-        doanh_thu_1_thang = float(ho_khoan.doanh_thu or 0)
-    else:
-        doanh_thu_1_thang = 0
-
-
-    # Doanh thu * số tháng trong khoảng thời gian
+    ho_khoan = db.query(models.HoKhoan).filter(models.HoKhoan.ma_so_thue == mst).first()
+    doanh_thu_1_thang = float(ho_khoan.doanh_thu or 0) if ho_khoan else 0
     doanh_thu_ky = doanh_thu_1_thang * total_months
-
 
     # ============================
     # CHÊNH LỆCH
     # ============================
-
-    chenhlech = doanh_thu_ky - tong_hd_vao
-
+    chenhlech = Decimal(str(doanh_thu_ky)) - Decimal(str(tong_hd_vao))
 
     # ============================
     # CẢNH BÁO
     # ============================
-
-    if chenhlech < 0:
-        canh_bao = "HĐV lớn hơn Doanh thu kỳ"
-    else:
-        canh_bao = "Bình thường"
-
+    canh_bao = "HĐV lớn hơn Doanh thu kỳ" if chenhlech < 0 else "Bình thường"
 
     # ============================
     # TRẢ KẾT QUẢ
     # ============================
-
-    return schemas.ReconcileResult_HDV_Doanh_thu(
+    result = schemas.ReconcileResult_HDV_Doanh_thu(
         ma_so_thue=mst,
         so_hd_vao=so_hd_vao,
         tong_hd_vao=tong_hd_vao,
@@ -325,6 +327,8 @@ def reconcile_invoice(
         hoa_don_vao=[schemas.HoaDonVaoSchema.from_orm(h) for h in hd_vao_list]
     )
 
+    # Convert Decimal/float an toàn trước khi trả JSON
+    return convert_decimal_to_safe_float(result.dict())
     
 @router.get("/doi_chieu_hdr-doanhthu", response_model=schemas.ReconcileResult_HDR_Doanh_thu)
 def reconcile_invoice_out(
@@ -333,13 +337,11 @@ def reconcile_invoice_out(
     end_date: Optional[date] = None,
     db: Session = Depends(get_db)
 ):
-
     # ============================
     # XỬ LÝ NGÀY
     # ============================
     if start_date and not end_date:
         end_date = date.today()
-
     if end_date and not start_date:
         start_date = date(2000, 1, 1)
 
@@ -348,24 +350,14 @@ def reconcile_invoice_out(
     else:
         date_label = "toàn bộ thời gian"
 
-
-    # ============================
-    # TÍNH SỐ THÁNG
-    # ============================
+    total_months = 1
     if start_date and end_date:
         total_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
-    else:
-        total_months = 1
-
 
     # ============================
     # LẤY HÓA ĐƠN RA
     # ============================
-
-    query_ra = db.query(models.HoaDonRa).filter(
-        models.HoaDonRa.ma_so_thue_nguoi_ban == mst
-    )
-
+    query_ra = db.query(models.HoaDonRa).filter(models.HoaDonRa.ma_so_thue_nguoi_ban == mst)
     if start_date:
         query_ra = query_ra.filter(models.HoaDonRa.ngay_lap >= start_date)
         query_ra = query_ra.filter(models.HoaDonRa.ngay_lap <= end_date)
@@ -374,51 +366,40 @@ def reconcile_invoice_out(
     so_hd_ra = len(hd_ra_list)
     tong_hd_ra = sum((h.tong_tien_thanh_toan or 0) for h in hd_ra_list)
 
-
     # ============================
     # LẤY DOANH THU 1 THÁNG TỪ HỘ KHOÁN
     # ============================
-
-    ho_khoan = db.query(models.HoKhoan).filter(
-        models.HoKhoan.ma_so_thue == mst
-    ).first()
-
+    ho_khoan = db.query(models.HoKhoan).filter(models.HoKhoan.ma_so_thue == mst).first()
     doanh_thu_1_thang = float(ho_khoan.doanh_thu or 0) if ho_khoan else 0
-
-    # Doanh thu kỳ = doanh thu 1 tháng * số tháng
     doanh_thu_ky = doanh_thu_1_thang * total_months
-
 
     # ============================
     # CHÊNH LỆCH
     # ============================
-    chenhlech = doanh_thu_ky - tong_hd_ra
-
+    chenhlech = Decimal(str(doanh_thu_ky)) - Decimal(str(tong_hd_ra))
 
     # ============================
     # CẢNH BÁO
     # ============================
-    if chenhlech < 0:
-        canh_bao = "HĐR lớn hơn Doanh thu kỳ"
-    else:
-        canh_bao = "Bình thường"
-
+    canh_bao = "HĐR lớn hơn Doanh thu kỳ" if chenhlech < 0 else "Bình thường"
 
     # ============================
     # TRẢ KẾT QUẢ
     # ============================
-
-    return schemas.ReconcileResult_HDR_Doanh_thu(
+    result = schemas.ReconcileResult_HDR_Doanh_thu(
         ma_so_thue=mst,
         so_hd_ra=so_hd_ra,
         tong_hd_ra=tong_hd_ra,
-        doanh_thu_ky=doanh_thu_ky,
+        doanh_thu_ke_khai=doanh_thu_ky,
         chenhlech=chenhlech,
         so_thang=total_months,
         khoang_thoi_gian=date_label,
         canh_bao=canh_bao,
         hoa_don_ra=[schemas.HoaDonRaSchema.from_orm(h) for h in hd_ra_list]
     )
+
+    # Convert Decimal/float an toàn trước khi trả JSON
+    return convert_decimal_to_safe_float(result.dict())
 
     
 @router.get("/doi_chieu_hdr-hdv", response_model=schemas.ReconcileResult)

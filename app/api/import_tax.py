@@ -5,6 +5,8 @@ from app.database import engine, get_db
 from app import models, schemas
 import pandas as pd
 import datetime
+from sqlalchemy import tuple_
+from sqlalchemy.dialects.postgresql import insert
 from io import BytesIO
 import re
 
@@ -173,90 +175,6 @@ def import_excel(file: UploadFile, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "ok", "inserted": count_insert, "updated": count_update}
 
-@router.post("/hoa_don_ra")
-def import_hoa_don(file: UploadFile, db: Session = Depends(get_db)):
-    try:
-        contents = file.file.read()
-        df = pd.read_excel(BytesIO(contents))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Không đọc được file Excel: {e}")
-
-    # Mapping header Excel → cột SQL
-    excel_to_sql = {
-        "Ký hiệu mẫu số": "ky_hieu_mau_so",
-        "Ký hiệu hóa đơn": "ky_hieu_hoa_don",
-        "Số hóa đơn": "so_hoa_don",
-        "Ngày lập": "ngay_lap",
-        "MST người bán/MST người xuất hàng": "ma_so_thue_nguoi_ban",
-        "Tên người bán/Tên người xuất hàng": "ten_nguoi_ban",
-        "MST người mua/MST người nhận hàng": "ma_so_thue_nguoi_mua",
-        "Tên người mua/Tên người nhận hàng": "ten_nguoi_mua",
-        "Địa chỉ người mua": "dia_chi_nguoi_mua",
-        "MST tổ chức cung cấp giải pháp": "ma_so_thue_to_chuc_cung_cap_giai_phap",
-        "MST tổ chức truyền nhận": "ma_so_thue_to_chuc_truyen_nhan",
-        "Tổng tiền chưa thuế": "tong_tien_chua_thue",
-        "Tổng tiền thuế": "tong_tien_thue",
-        "Tổng tiền chiết khấu TM": "tong_tien_chiet_khau_tm",
-        "Tổng tiền phí": "tong_tien_phi",
-        "Tổng tiền thanh toán": "tong_tien_thanh_toan",
-        "Đơn vị tiền tệ": "don_vi_tien_te",
-        "Tỷ giá": "ty_gia",
-        "Trạng thái hóa đơn": "trang_thai_hoa_don",
-        "Kết quả kiểm tra hóa đơn": "ket_qua_kiem_tra_hoa_don"
-    }
-
-    date_fields = ["ngay_lap"]
-
-    count_insert = 0
-    count_update = 0
-
-    for idx, row in df.iterrows():
-        row_data = {}
-        for excel_col, sql_col in excel_to_sql.items():
-            if excel_col in row:
-                row_data[sql_col] = row[excel_col]
-
-        # Parse ngày
-        for f in date_fields:
-            if f in row_data:
-                row_data[f] = parse_date(row_data[f])
-
-        # Chuẩn hóa MST
-        for mst_field in ["ma_so_thue_nguoi_ban", "ma_so_thue_nguoi_mua"]:
-            if mst_field in row_data:
-                row_data[mst_field] = clean_mst(row_data[mst_field])
-
-        # Kiểm tra bản ghi đã tồn tại theo so_hoa_don + MST người bán
-        so_hoa_don = row_data.get("so_hoa_don")
-        ma_so_thue_nguoi_ban = row_data.get("ma_so_thue_nguoi_ban")
-
-        if not (so_hoa_don and ma_so_thue_nguoi_ban):
-            continue  # bỏ qua nếu thiếu key chính
-
-        db_obj = db.query(models.HoaDonRa).filter(
-            models.HoaDonRa.so_hoa_don == so_hoa_don,
-            models.HoaDonRa.ma_so_thue_nguoi_ban == ma_so_thue_nguoi_ban
-        ).first()
-
-        if db_obj:
-            # Cập nhật các trường có dữ liệu
-            for k, v in row_data.items():
-                if v is not None:
-                    setattr(db_obj, k, v)
-            db.add(db_obj)
-            count_update += 1
-        else:
-            # Thêm mới, trường không có dữ liệu → None
-            for col in models.HoaDonRa.__table__.columns.keys():
-                if col not in row_data:
-                    row_data[col] = None
-            db_obj = models.HoaDonRa(**row_data)
-            db.add(db_obj)
-            count_insert += 1
-
-    db.commit()
-    return {"status": "ok", "inserted": count_insert, "updated": count_update}
-
 
 import logging
 
@@ -270,119 +188,6 @@ def safe_float(val):
 
 logger = logging.getLogger(__name__)
 
-@router.post("/hoa_don_vao")
-def import_hoa_don_vao(file: UploadFile, db: Session = Depends(get_db)):
-    try:
-        contents = file.file.read()
-        df = pd.read_excel(BytesIO(contents))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Không đọc được file Excel: {e}")
-
-    excel_to_sql = {
-        "Ký hiệu mẫu số": "ky_hieu_mau_so",
-        "Ký hiệu hóa đơn": "ky_hieu_hoa_don",
-        "Số hóa đơn": "so_hoa_don",
-        "Ngày lập": "ngay_lap",
-        "MST người bán/MST người xuất hàng": "ma_so_thue_nguoi_ban",
-        "Tên người bán": "ten_nguoi_ban",
-        "Địa chỉ người bán 1": "dia_chi_nguoi_ban",
-        "MST người mua/MST người nhận hàng": "ma_so_thue_nguoi_mua",
-        "Tên người mua": "ten_nguoi_mua",
-        "MST tổ chức cung cấp giải pháp": "ma_so_thue_to_chuc_cung_cap_giai_phap",
-        "MST tổ chức truyền nhận": "ma_so_thue_to_chuc_truyen_nhan",
-        "Tổng tiền chưa thuế": "tong_tien_chua_thue",
-        "Tổng tiền thuế": "tong_tien_thue",
-        "Tổng tiền chiết khấu TM": "tong_tien_chiet_khau_tm",
-        "Tổng tiền phí": "tong_tien_phi",
-        "Tổng tiền thanh toán": "tong_tien_thanh_toan",
-        "Đơn vị tiền tệ 1": "don_vi_tien_te",
-        "Tỷ giá": "ty_gia",
-        "Trạng thái hóa đơn": "trang_thai_hoa_don",
-        "Kết quả kiểm tra hóa đơn": "ket_qua_kiem_tra_hoa_don"
-    }
-
-    numeric_fields = [
-        "tong_tien_chua_thue",
-        "tong_tien_thue",
-        "tong_tien_chiet_khau_tm",
-        "tong_tien_phi",
-        "tong_tien_thanh_toan",
-        "ty_gia",
-        "ky_hieu_mau_so"
-    ]
-
-    date_fields = ["ngay_lap"]
-
-    count_insert = 0
-    count_update = 0
-    mst_inserted = set()
-
-    for idx, row in df.iterrows():
-        # chỉ lấy những cột Excel đã map
-        row_data = {sql_col: row.get(excel_col) for excel_col, sql_col in excel_to_sql.items() if excel_col in row}
-
-        # parse ngày
-        for f in date_fields:
-            if f in row_data:
-                row_data[f] = parse_date(row_data[f])
-
-        # chuẩn hóa MST
-        for mst_field in ["ma_so_thue_nguoi_ban", "ma_so_thue_nguoi_mua"]:
-            if mst_field in row_data:
-                row_data[mst_field] = clean_mst(row_data[mst_field])
-
-        # ép kiểu float
-        for f in numeric_fields:
-            if f in row_data:
-                row_data[f] = safe_float(row_data[f])
-
-        so_hoa_don = row_data.get("so_hoa_don")
-        ma_so_thue_nguoi_mua = row_data.get("ma_so_thue_nguoi_mua")
-        ky_hieu_hoa_don = row_data.get("ky_hieu_hoa_don")
-
-        if not (so_hoa_don and ma_so_thue_nguoi_mua and ky_hieu_hoa_don):
-            continue
-
-        # tìm hóa đơn đã tồn tại
-        db_obj = db.query(models.HoaDonVao).filter(
-            models.HoaDonVao.so_hoa_don == str(so_hoa_don),
-            models.HoaDonVao.ma_so_thue_nguoi_mua == ma_so_thue_nguoi_mua,
-            models.HoaDonVao.ky_hieu_hoa_don == ky_hieu_hoa_don
-        ).first()
-
-        if db_obj:
-            # cập nhật
-            for k, v in row_data.items():
-                if v is not None:
-                    setattr(db_obj, k, v)
-            db.add(db_obj)
-            count_update += 1
-        else:
-            # insert mới
-            valid_columns = set(models.HoaDonVao.__table__.columns.keys())
-            row_data = {k: v for k, v in row_data.items() if k in valid_columns}
-
-            # fill None cho cột còn thiếu
-            for col in valid_columns:
-                if col not in row_data:
-                    row_data[col] = None
-
-            db_obj = models.HoaDonVao(**row_data)
-            db.add(db_obj)
-            count_insert += 1
-            mst_inserted.add(ma_so_thue_nguoi_mua)
-
-    db.commit()
-
-    logger.info(f"ĐÃ INSERT {count_insert} hóa đơn từ {len(mst_inserted)} MST")
-    logger.info(f"DANH SÁCH MST INSERT: {', '.join(mst_inserted)}")
-
-    return {
-        "status": "ok",
-        "inserted": count_insert,
-        "updated": count_update,
-        "mst_inserted": list(mst_inserted)
-    }
 
 @router.post("/CSDL_KD")
 def import_excel(file: UploadFile, db: Session = Depends(get_db)):
@@ -527,37 +332,40 @@ def import_excel(file: UploadFile, db: Session = Depends(get_db)):
         "total": count_insert + count_update
     }
     
-@router.post("/hoa_don_vao_1")
-def import_hoa_don_vao_1(file: UploadFile, db: Session = Depends(get_db)):
+
+@router.post("/hoa_don_vao")
+def import_hoa_don_vao(file: UploadFile, db: Session = Depends(get_db)):
     try:
         contents = file.file.read()
         df = pd.read_excel(BytesIO(contents))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Không đọc được file Excel: {e}")
 
+    # Mapping cột Excel -> DB
     excel_to_sql = {
         "Ký hiệu mẫu số": "ky_hieu_mau_so",
         "Ký hiệu hóa đơn": "ky_hieu_hoa_don",
         "Số hóa đơn": "so_hoa_don",
         "Ngày lập": "ngay_lap",
         "MST người bán/MST người xuất hàng": "ma_so_thue_nguoi_ban",
-        "Tên người bán": "ten_nguoi_ban",
-        "Địa chỉ người bán 1": "dia_chi_nguoi_ban",
+        "Tên người bán/Tên người xuất hàng": "ten_nguoi_ban",
+        "Địa chỉ người bán": "dia_chi_nguoi_ban",
         "MST người mua/MST người nhận hàng": "ma_so_thue_nguoi_mua",
-        "Tên người mua": "ten_nguoi_mua",
-        "MST tổ chức cung cấp giải pháp": "ma_so_thue_to_chuc_cung_cap_giai_phap",
-        "MST tổ chức truyền nhận": "ma_so_thue_to_chuc_truyen_nhan",
+        "Tên người mua/Tên người nhận hàng": "ten_nguoi_mua",
+        "Mã số thuế tổ chức cung cấp giải pháp": "ma_so_thue_to_chuc_cung_cap_giai_phap",
+        "Mã số thuế tổ chức truyền nhận": "ma_so_thue_to_chuc_truyen_nhan",
         "Tổng tiền chưa thuế": "tong_tien_chua_thue",
         "Tổng tiền thuế": "tong_tien_thue",
-        "Tổng tiền chiết khấu TM": "tong_tien_chiet_khau_tm",
+        "Tổng tiền chiết khấu thương mại": "tong_tien_chiet_khau_tm",
         "Tổng tiền phí": "tong_tien_phi",
         "Tổng tiền thanh toán": "tong_tien_thanh_toan",
-        "Đơn vị tiền tệ 1": "don_vi_tien_te",
+        "Đơn vị tiền tệ": "don_vi_tien_te",
         "Tỷ giá": "ty_gia",
         "Trạng thái hóa đơn": "trang_thai_hoa_don",
         "Kết quả kiểm tra hóa đơn": "ket_qua_kiem_tra_hoa_don"
     }
 
+    date_fields = ["ngay_lap"]
     numeric_fields = [
         "tong_tien_chua_thue",
         "tong_tien_thue",
@@ -567,68 +375,132 @@ def import_hoa_don_vao_1(file: UploadFile, db: Session = Depends(get_db)):
         "ty_gia",
         "ky_hieu_mau_so"
     ]
-    date_fields = ["ngay_lap"]
 
-    # --- Chuẩn hóa toàn bộ dataframe trước ---
-    df = df.rename(columns=excel_to_sql)
+    # Chuẩn hóa dữ liệu từ Excel
+    df = df[list(excel_to_sql.keys())].rename(columns=excel_to_sql)
 
     for f in date_fields:
         if f in df.columns:
-            df[f] = pd.to_datetime(df[f], errors='coerce')
+            df[f] = df[f].apply(parse_date)
 
     for f in numeric_fields:
         if f in df.columns:
-            df[f] = pd.to_numeric(df[f], errors='coerce')
+            df[f] = df[f].apply(safe_float)
 
     for mst_field in ["ma_so_thue_nguoi_ban", "ma_so_thue_nguoi_mua"]:
         if mst_field in df.columns:
-            df[mst_field] = df[mst_field].apply(lambda x: clean_mst(x) if pd.notnull(x) else None)
+            df[mst_field] = df[mst_field].apply(clean_mst)
 
-    # --- Lọc những dòng hợp lệ ---
+    # Lọc những dòng có đủ key để upsert
     df = df.dropna(subset=["so_hoa_don", "ma_so_thue_nguoi_mua", "ky_hieu_hoa_don"])
+    df = df.drop_duplicates(subset=["ma_so_thue_nguoi_mua", "so_hoa_don", "ky_hieu_hoa_don"])
 
-    # --- Lấy tất cả hóa đơn hiện có để check trùng ---
-    mst_list = df["ma_so_thue_nguoi_mua"].unique().tolist()
-    existing_invoices = db.query(models.HoaDonVao).filter(
-        models.HoaDonVao.ma_so_thue_nguoi_mua.in_(mst_list)
-    ).all()
 
-    # Tạo set key (mst + so_hoa_don + ky_hieu_hoa_don) để check nhanh
-    existing_keys = set(
-        (h.ma_so_thue_nguoi_mua, str(h.so_hoa_don), h.ky_hieu_hoa_don)
-        for h in existing_invoices
+    if df.empty:
+        return {"status": "ok", "inserted": 0, "updated": 0}
+
+    # Chuyển DataFrame thành danh sách dict
+    records = df.to_dict(orient="records")
+
+    # Xây dựng câu lệnh INSERT ... ON CONFLICT DO UPDATE
+
+    table = models.HoaDonVao.__table__
+    columns = [c.name for c in table.columns if c.name != "id"]
+    insert_values = [{k: r.get(k) for k in columns} for r in records]
+
+    stmt = insert(table).values(insert_values)  # <--- dùng insert từ postgres dialect
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["ma_so_thue_nguoi_mua", "so_hoa_don", "ky_hieu_hoa_don"],
+        set_={c: getattr(stmt.excluded, c) for c in columns if c not in ["ma_so_thue_nguoi_mua", "so_hoa_don", "ky_hieu_hoa_don"]}
     )
 
-    # --- Tách insert và update ---
-    to_insert = []
-    to_update = []
-
-    for _, row in df.iterrows():
-        key = (row["ma_so_thue_nguoi_mua"], str(row["so_hoa_don"]), row["ky_hieu_hoa_don"])
-        row_data = row.to_dict()
-        if key in existing_keys:
-            to_update.append(row_data)
-        else:
-            to_insert.append(row_data)
-
-    # --- Bulk insert ---
-    if to_insert:
-        db.bulk_insert_mappings(models.HoaDonVao, to_insert)
-
-    # --- Bulk update ---
-    if to_update:
-        for upd in to_update:
-            db.query(models.HoaDonVao).filter(
-                models.HoaDonVao.so_hoa_don == str(upd["so_hoa_don"]),
-                models.HoaDonVao.ma_so_thue_nguoi_mua == upd["ma_so_thue_nguoi_mua"],
-                models.HoaDonVao.ky_hieu_hoa_don == upd["ky_hieu_hoa_don"]
-            ).update(upd)
-
+    db.execute(stmt)
     db.commit()
 
-    return {
-        "status": "ok",
-        "inserted": len(to_insert),
-        "updated": len(to_update),
-        "mst_inserted": list(df["ma_so_thue_nguoi_mua"].unique())
+
+    return {"status": "ok", "rows_processed": len(records)}
+
+@router.post("/hoa_don_ra")
+def import_hoa_don_ra(file: UploadFile, db: Session = Depends(get_db)):
+    try:
+        contents = file.file.read()
+        df = pd.read_excel(BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Không đọc được file Excel: {e}")
+
+    # Mapping cột Excel -> DB
+    excel_to_sql = {
+        "Ký hiệu mẫu số": "ky_hieu_mau_so",
+        "Ký hiệu hóa đơn": "ky_hieu_hoa_don",
+        "Số hóa đơn": "so_hoa_don",
+        "Ngày lập": "ngay_lap",
+        "MST người bán/MST người xuất hàng": "ma_so_thue_nguoi_ban",
+        "Tên người bán/Tên người xuất hàng": "ten_nguoi_ban",
+        "Địa chỉ người mua": "dia_chi_nguoi_mua",
+        "MST người mua/MST người nhận hàng": "ma_so_thue_nguoi_mua",
+        "Tên người mua/Tên người nhận hàng": "ten_nguoi_mua",
+        "Mã số thuế tổ chức cung cấp giải pháp": "ma_so_thue_to_chuc_cung_cap_giai_phap",
+        "Mã số thuế tổ chức truyền nhận": "ma_so_thue_to_chuc_truyen_nhan",
+        "Tổng tiền chưa thuế": "tong_tien_chua_thue",
+        "Tổng tiền thuế": "tong_tien_thue",
+        "Tổng tiền chiết khấu thương mại": "tong_tien_chiet_khau_tm",
+        "Tổng tiền phí": "tong_tien_phi",
+        "Tổng tiền thanh toán": "tong_tien_thanh_toan",
+        "Đơn vị tiền tệ": "don_vi_tien_te",
+        "Tỷ giá": "ty_gia",
+        "Trạng thái hóa đơn": "trang_thai_hoa_don",
+        "Kết quả kiểm tra hóa đơn": "ket_qua_kiem_tra_hoa_don"
     }
+
+    date_fields = ["ngay_lap"]
+    numeric_fields = [
+        "tong_tien_chua_thue",
+        "tong_tien_thue",
+        "tong_tien_chiet_khau_tm",
+        "tong_tien_phi",
+        "tong_tien_thanh_toan",
+        "ty_gia",
+        "ky_hieu_mau_so"
+    ]
+
+    # Chuẩn hóa dữ liệu từ Excel
+    df = df[list(excel_to_sql.keys())].rename(columns=excel_to_sql)
+
+    for f in date_fields:
+        if f in df.columns:
+            df[f] = df[f].apply(parse_date)
+
+    for f in numeric_fields:
+        if f in df.columns:
+            df[f] = df[f].apply(safe_float)
+
+    for mst_field in ["ma_so_thue_nguoi_ban", "ma_so_thue_nguoi_mua"]:
+        if mst_field in df.columns:
+            df[mst_field] = df[mst_field].apply(clean_mst)
+
+    # Lọc những dòng có đủ key để upsert
+    df = df.dropna(subset=["so_hoa_don", "ma_so_thue_nguoi_ban", "ky_hieu_hoa_don"])
+    df = df.drop_duplicates(subset=["ma_so_thue_nguoi_ban", "so_hoa_don", "ky_hieu_hoa_don"])
+
+    if df.empty:
+        return {"status": "ok", "inserted": 0, "updated": 0}
+
+    # Chuyển DataFrame thành danh sách dict
+    records = df.to_dict(orient="records")
+
+    # Build INSERT ... ON CONFLICT DO UPDATE
+    table = models.HoaDonRa.__table__
+    columns = [c.name for c in table.columns if c.name != "id"]
+    insert_values = [{k: r.get(k) for k in columns} for r in records]
+
+    stmt = insert(table).values(insert_values)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["ma_so_thue_nguoi_ban", "so_hoa_don", "ky_hieu_hoa_don"],
+        set_={c: getattr(stmt.excluded, c) for c in columns
+              if c not in ["ma_so_thue_nguoi_ban", "so_hoa_don", "ky_hieu_hoa_don"]}
+    )
+
+    db.execute(stmt)
+    db.commit()
+
+    return {"status": "ok", "rows_processed": len(records)}
