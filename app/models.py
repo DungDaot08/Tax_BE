@@ -93,6 +93,7 @@ class DangKyThue(Base):
     doanh_thu_ke_khai = Column(Numeric(18, 2))
     ten_cua_hang = Column(String(255), nullable=True)
     mat_bang_kinh_doanh = Column(String(255), nullable=True)
+    can_bo_quan_ly = Column(String(100))
 
 
     created_at = Column(TIMESTAMP, server_default=func.now())

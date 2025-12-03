@@ -205,3 +205,47 @@ def list_tax(
     r.setex(cache_key, 30, result.json())
 
     return result
+
+@router.get("/can_bo/{ten_can_bo}", response_model=schemas.MSTByCanBoResponse)
+def get_mst_by_can_bo(ten_can_bo: str, db: Session = Depends(get_db)):
+    result = (
+        db.query(models.DangKyThue.ma_so_thue)
+        .filter(models.DangKyThue.can_bo_quan_ly == ten_can_bo)
+        .all()
+    )
+
+    ma_so_thue_list = [r[0] for r in result]
+
+    return schemas.MSTByCanBoResponse(
+        can_bo_quan_ly=ten_can_bo,
+        ma_so_thue=ma_so_thue_list
+    )
+
+@router.get("/can_bo", response_model=schemas.MSTByAllCanBoResponse)
+def get_all_mst_by_can_bo(db: Session = Depends(get_db)):
+    # Lấy danh sách tên cán bộ (distinct)
+    can_bo_list = (
+        db.query(models.DangKyThue.can_bo_quan_ly)
+        .distinct()
+        .all()
+    )
+
+    response_data = []
+
+    for (can_bo,) in can_bo_list:
+        result = (
+            db.query(models.DangKyThue.ma_so_thue)
+            .filter(models.DangKyThue.can_bo_quan_ly == can_bo)
+            .all()
+        )
+
+        ma_so_thue_list = [r[0] for r in result]
+
+        response_data.append(
+            schemas.MSTByCanBoResponse(
+                can_bo_quan_ly=can_bo,
+                ma_so_thue=ma_so_thue_list
+            )
+        )
+
+    return schemas.MSTByAllCanBoResponse(data=response_data)

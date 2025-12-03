@@ -90,6 +90,7 @@ class DangKyThueSchema(BaseModel):
     mat_bang_kinh_doanh: Optional[str]
     quy_mo_dan_so_dia_ban_kinh_doanh: Optional[int]
     doanh_thu_ke_khai: Optional[float]
+    can_bo_quan_ly: Optional[str]
 
     class Config:
         from_attributes = True
@@ -351,3 +352,10 @@ class ReconcileHDV(BaseModel):
 class HoKhoanCheckResponse(BaseModel):
     exists: bool
     ma_so_thue: str
+    
+class MSTByCanBoResponse(BaseModel):
+    can_bo_quan_ly: str
+    ma_so_thue: List[str]
+
+class MSTByAllCanBoResponse(BaseModel):
+    data: List[MSTByCanBoResponse]
