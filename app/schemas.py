@@ -86,8 +86,8 @@ class DangKyThueSchema(BaseModel):
     tien_dien_su_dung: Optional[Decimal]
     tien_nuoc_su_dung: Optional[Decimal]
     chi_phi_thue_mat_bang: Optional[Decimal]
-    ten_cua_hang = Optional[str],
-    mat_bang_kinh_doanh = Optional[str],
+    ten_cua_hang: Optional[str]
+    mat_bang_kinh_doanh: Optional[str]
     quy_mo_dan_so_dia_ban_kinh_doanh: Optional[int]
     doanh_thu_ke_khai: Optional[float]
 
