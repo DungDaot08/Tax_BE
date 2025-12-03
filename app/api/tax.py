@@ -170,6 +170,7 @@ def list_tax(
     page_size: int = 20,
     ma_tinh: Optional[str] = None,
     nganh_nghe: Optional[str] = None,
+    can_bo: Optional[str] = None,          # ⬅️ thêm tham số mới
     db: Session = Depends(get_db)
 ):
     cache_key = make_cache_key(
@@ -178,6 +179,7 @@ def list_tax(
         size=page_size,
         ma_tinh=ma_tinh or "",
         nganh_nghe=nganh_nghe or "",
+        can_bo=can_bo or ""                # ⬅️ thêm vào cache key
     )
 
     cached = r.get(cache_key)
@@ -188,11 +190,17 @@ def list_tax(
 
     if ma_tinh:
         query = query.filter(models.DangKyThue.ma_tinh_thanh_pho == ma_tinh)
+
     if nganh_nghe:
-        query = query.filter(models.DangKyThue.ten_nganh_nghe_kd_chinh.ilike(f"%{nganh_nghe}%"))
+        query = query.filter(
+            models.DangKyThue.ten_nganh_nghe_kd_chinh.ilike(f"%{nganh_nghe}%")
+        )
+
+    if can_bo:                               # ⬅️ filter mới
+        query = query.filter(models.DangKyThue.can_bo_quan_ly == can_bo)
 
     total = query.count()
-    items = query.offset((page-1)*page_size).limit(page_size).all()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
 
     result = schemas.PaginatedTax(
         total=total,
@@ -201,25 +209,9 @@ def list_tax(
         items=[schemas.DangKyThueSchema.from_orm(x) for x in items]
     )
 
-
     r.setex(cache_key, 30, result.json())
 
     return result
-
-@router.get("/can_bo/{ten_can_bo}", response_model=schemas.MSTByCanBoResponse)
-def get_mst_by_can_bo(ten_can_bo: str, db: Session = Depends(get_db)):
-    result = (
-        db.query(models.DangKyThue.ma_so_thue)
-        .filter(models.DangKyThue.can_bo_quan_ly == ten_can_bo)
-        .all()
-    )
-
-    ma_so_thue_list = [r[0] for r in result]
-
-    return schemas.MSTByCanBoResponse(
-        can_bo_quan_ly=ten_can_bo,
-        ma_so_thue=ma_so_thue_list
-    )
 
 @router.get("/can_bo", response_model=schemas.MSTByAllCanBoResponse)
 def get_all_mst_by_can_bo(db: Session = Depends(get_db)):
