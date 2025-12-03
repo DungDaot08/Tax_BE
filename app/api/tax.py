@@ -62,6 +62,15 @@ def delete_tax(ma_so_thue: str, db: Session = Depends(get_db)):
     # purge cache nếu cần
     return {"message": "Đã xóa thành công"}
 
+@router.get("/check/{ma_so_thue}", response_model=schemas.HoKhoanCheckResponse)
+def check_mst(ma_so_thue: str, db: Session = Depends(get_db)):
+    result = db.query(models.HoKhoan).filter(models.HoKhoan.ma_so_thue == ma_so_thue).first()
+
+    return schemas.HoKhoanCheckResponse(
+        exists = result is not None,
+        ma_so_thue = ma_so_thue
+    )
+
 
 # ==========================
 #  SEARCH API

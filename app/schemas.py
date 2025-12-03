@@ -86,6 +86,8 @@ class DangKyThueSchema(BaseModel):
     tien_dien_su_dung: Optional[Decimal]
     tien_nuoc_su_dung: Optional[Decimal]
     chi_phi_thue_mat_bang: Optional[Decimal]
+    ten_cua_hang = Optional[str],
+    mat_bang_kinh_doanh = Optional[str],
     quy_mo_dan_so_dia_ban_kinh_doanh: Optional[int]
     doanh_thu_ke_khai: Optional[float]
 
@@ -291,21 +293,61 @@ class ReconcileResult(BaseModel):
     tong_hd_vao: float
     tong_hd_ra: float
 
-    # Năm trước (so sánh)
-    so_hd_vao_lastyear: int
-    so_hd_ra_lastyear: int
-    tong_hd_vao_lastyear: float
-    tong_hd_ra_lastyear: float
-
     chenhlech: float
     canh_bao: str
 
     hoa_don_vao: List[HoaDonVaoSchema]
     hoa_don_ra: List[HoaDonRaSchema]
 
-    hoa_don_vao_lastyear: List[HoaDonVaoSchema]
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+class ReconcileHDR(BaseModel):
+    ma_so_thue: str
+    khoang_thoi_gian: str
+
+    # Năm nay
+    so_hd_ra: int
+    tong_hd_ra: float
+
+    # Năm trước
+    so_hd_ra_lastyear: int
+    tong_hd_ra_lastyear: float
+
+    chenhlech: float
+    canh_bao: str
+
+    hoa_don_ra: List[HoaDonRaSchema]
     hoa_don_ra_lastyear: List[HoaDonRaSchema]
 
     class Config:
         from_attributes = True
         orm_mode = True
+
+class ReconcileHDV(BaseModel):
+    ma_so_thue: str
+    khoang_thoi_gian: str
+
+    # Năm nay
+    so_hd_vao: int
+    tong_hd_vao: float
+
+    # Năm trước
+    so_hd_vao_lastyear: int
+    tong_hd_vao_lastyear: float
+
+    chenhlech: float
+    canh_bao: str
+
+    hoa_don_vao: List[HoaDonVaoSchema]
+    hoa_don_vao_lastyear: List[HoaDonVaoSchema]
+
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+
+class HoKhoanCheckResponse(BaseModel):
+    exists: bool
+    ma_so_thue: str

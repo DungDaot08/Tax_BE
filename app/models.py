@@ -91,6 +91,9 @@ class DangKyThue(Base):
     chi_phi_thue_mat_bang = Column(Numeric(18, 2))
     quy_mo_dan_so_dia_ban_kinh_doanh = Column(Integer)
     doanh_thu_ke_khai = Column(Numeric(18, 2))
+    ten_cua_hang = Column(String(255), nullable=True)
+    mat_bang_kinh_doanh = Column(String(255), nullable=True)
+
 
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
@@ -112,6 +115,7 @@ class HoaDonRa(Base):
 
     # Người bán / Người xuất hàng
     ma_so_thue_nguoi_ban = Column(String(50), ForeignKey("dang_ky_thue.ma_so_thue"))
+    #ma_so_thue_nguoi_ban = Column(String(50))
     ten_nguoi_ban = Column(String(255))
 
     # Người mua / Người nhận hàng
@@ -160,6 +164,7 @@ class HoaDonVao(Base):
 
     # Người mua / nhận hàng (bắt buộc)
     ma_so_thue_nguoi_mua = Column(String(50), ForeignKey("dang_ky_thue.ma_so_thue"), nullable=False)
+    #ma_so_thue_nguoi_mua = Column(String(50), nullable=False)
     ten_nguoi_mua = Column(String(255))
 
     # Thông tin hệ thống hóa đơn
@@ -185,3 +190,9 @@ class HoaDonVao(Base):
 
     # Quan hệ với bảng dang_ky_thue
     nguoi_mua = relationship("DangKyThue", backref="hoa_don_vao")
+    
+class HoKhoan(Base):
+    __tablename__ = "ho_khoan"
+
+    ma_so_thue = Column(String(20), primary_key=True, index=True)
+    doanh_thu = Column(Numeric(18, 2), nullable=False)
